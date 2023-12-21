@@ -1,0 +1,92 @@
+cat > default.conf << EOL 
+server {
+    # Listen on port 80
+    # on both IPv4 and IPv6
+    listen 80 default_server ipv6only=on;
+    listen [::]:80 default_server ipv6only=on;
+
+    # your domain or ip address
+    server_name _;
+
+    # document root
+    root /var/www/html/public;
+
+    # X-Frame-Options
+    # config to don't allow the browser to render the page inside an frame or iframe
+    # and avoid clickjacking http://en.wikipedia.org/wiki/Clickjacking
+    # if you need to allow [i]frames, you can use SAMEORIGIN or even set an uri with ALLOW-FROM uri
+    # https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    
+    # X-Content-Type-Options
+    # when serving user-supplied content, include a X-Content-Type-Options: nosniff header along with the Content-Type: header,
+    # to disable content-type sniffing on some browsers.
+    # https://www.owasp.org/index.php/List_of_useful_HTTP_headers
+    # currently suppoorted in IE > 8 http://blogs.msdn.com/b/ie/archive/2008/09/02/ie8-security-part-vi-beta-2-update.aspx
+    # http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx
+    # 'soon' on Firefox https://bugzilla.mozilla.org/show_bug.cgi?id=471020
+    add_header X-Content-Type-Options "nosniff" always;
+    
+    # X-XSS-Protection
+    # This header enables the Cross-site scripting (XSS) filter built into most recent web browsers.
+    # It's usually enabled by default anyway, so the role of this header is to re-enable the filter for 
+    # this particular website if it was disabled by the user.
+    # https://www.owasp.org/index.php/List_of_useful_HTTP_headers
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Priority file extensions, Add index.php to the list if you are using PHP
+    index index.php;
+
+    # removes trailing slashes (prevents SEO duplicate content issues)
+	if (!-d $request_filename)
+	{
+		rewrite ^/(.+)/$ /$1 permanent;
+	}
+
+    #access_log  /var/log/nginx/host.access.log  main;
+
+    # Define the document root of the server e.g /var/www/html
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico {
+        access_log off;
+        log_not_found on;
+    }
+    location = /robots.txt  {
+        access_log off;
+        log_not_found on;
+    }
+
+    error_page 404 /index.php;
+    # redirect server error pages to the static page /50x.html
+    error_page 500 502 503 504 /index.php;
+
+    # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass php-fpm:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    # Deny access to hidden files (beginning with a period)
+    location ~ /\. {
+        deny all;
+    }
+
+    # deny access to .htaccess files,
+    # if Apache's document root
+    # deny access to .htaccess files
+    location ~ /\.ht {
+        deny  all;
+    }
+}
+EOL
